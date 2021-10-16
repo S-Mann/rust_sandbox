@@ -1,56 +1,46 @@
-#[derive(Debug)]
-pub enum GrammarItem {
-    Sum,
-    Sub,
-    Number(u32),
-}
+use rand::seq::SliceRandom;
+use std::collections::HashMap;
 
-#[derive(Debug)]
-pub enum LexItem {
-    Operator(char),
-    Number(u32),
-}
-
-fn lex(input: &str) {
-    let mut result = Vec::new();
-    let radix: u32 = 10;
-
-    let mut it = input.chars().peekable();
-    while let Some(&c) = it.peek() {
-        match c {
-            '0'..='9' => {
-                let mut n = 0;
-                let mut counter = 0;
-                while let Some(&val) = it.peek() {
-                    if let Some(digit) = val.to_digit(radix) {
-                        if counter >= 1 {
-                            n *= 10;
-                        }
-                        n += digit;
-                        counter += 1;
-                        it.next();
-                    } else {
-                        break;
-                    }
-                }
-                result.push(LexItem::Number(n));
-                println!("'0'..='9' => {:?}", c);
-                it.next();
-            }
-            '+' | '-' => {
-                result.push(LexItem::Operator(c));
-                println!("'+' | '-' => {:?}", c);
-                it.next();
-            }
-            _ => {
-                println!("        _ => {:?}", c);
-                it.next();
+fn expander(sym: &str, expansion: &mut Vec<String>, grammar: &HashMap<&str, Vec<Vec<&str>>>) {
+    if let Some(next_sym) = grammar.get(sym) {
+        if let Some(exp_sym) = next_sym.choose(&mut rand::thread_rng()) {
+            for trg_exp in exp_sym {
+                expander(trg_exp, expansion, grammar);
             }
         }
+    } else {
+        expansion.push(sym.to_string());
     }
-    println!("{:?}", result);
 }
 
 fn main() {
-    lex("1 -020 +3 ");
+    let mut grammar = HashMap::new();
+    grammar.insert(
+        "S",
+        vec![
+            vec!["S", "op", "S"],
+            vec!["num"],
+        ],
+    );
+    grammar.insert(
+        "num",
+        vec![
+            vec!["num", "num"],
+            vec!["0"],
+            vec!["1"],
+            vec!["2"],
+            vec!["3"],
+            vec!["4"],
+            vec!["6"],
+            vec!["7"],
+            vec!["8"],
+            vec!["9"],
+        ],
+    );
+    grammar.insert("op", vec![vec!["+"], vec!["+"], vec!["*"], vec!["/"]]);
+
+    let mut expansion: Vec<String> = vec![];
+
+    expander("S", &mut expansion, &grammar);
+    println!("Generated expression -- {:?}", expansion.join(""));
 }
