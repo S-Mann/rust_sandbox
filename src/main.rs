@@ -1,46 +1,71 @@
-use rand::seq::SliceRandom;
-use std::collections::HashMap;
+use std::iter::Peekable;
 
-fn expander(sym: &str, expansion: &mut Vec<String>, grammar: &HashMap<&str, Vec<Vec<&str>>>) {
-    if let Some(next_sym) = grammar.get(sym) {
-        if let Some(exp_sym) = next_sym.choose(&mut rand::thread_rng()) {
-            for trg_exp in exp_sym {
-                expander(trg_exp, expansion, grammar);
-            }
-        }
-    } else {
-        expansion.push(sym.to_string());
+#[derive(Debug)]
+enum LexItem {
+    Number,
+    Operator,
+}
+
+#[derive(Debug)]
+struct ParseToken {
+    value: Vec<char>,
+    token_type: LexItem,
+}
+
+fn check_type(c: &char) -> Option<LexItem> {
+    match c {
+        '0'..='9' => Some(LexItem::Number),
+        '+' | '*' => Some(LexItem::Operator),
+        _ => None,
     }
 }
 
+fn fast_forward<I>(initial_value: char, it: &mut Peekable<I>) -> Vec<char>
+where
+    I: Iterator<Item = char>,
+{
+    let mut result = vec![initial_value];
+    while let Some(&c) = it.peek() {
+        if let Some(LexItem::Number) = check_type(&c) {
+            result.push(c);
+            it.next();
+        } else {
+            break;
+        }
+    }
+    result
+}
+
+fn tokenizer<I>(it: &mut Peekable<I>) -> Vec<ParseToken>
+where
+    I: Iterator<Item = char>,
+{
+    let mut result = Vec::<ParseToken>::new();
+    while let Some(&c) = it.peek() {
+        it.next();
+        if let Some(item) = check_type(&c) {
+            match item {
+                LexItem::Number => {
+                    result.push(ParseToken {
+                        value: fast_forward(c, it),
+                        token_type: LexItem::Number,
+                    });
+                }
+                LexItem::Operator => {
+                    result.push(ParseToken {
+                        value: vec![c],
+                        token_type: LexItem::Operator,
+                    });
+                }
+            }
+        }
+    }
+    result
+}
+
 fn main() {
-    let mut grammar = HashMap::new();
-    grammar.insert(
-        "S",
-        vec![
-            vec!["S", "op", "S"],
-            vec!["num"],
-        ],
-    );
-    grammar.insert(
-        "num",
-        vec![
-            vec!["num", "num"],
-            vec!["0"],
-            vec!["1"],
-            vec!["2"],
-            vec!["3"],
-            vec!["4"],
-            vec!["6"],
-            vec!["7"],
-            vec!["8"],
-            vec!["9"],
-        ],
-    );
-    grammar.insert("op", vec![vec!["+"], vec!["+"], vec!["*"], vec!["/"]]);
-
-    let mut expansion: Vec<String> = vec![];
-
-    expander("S", &mut expansion, &grammar);
-    println!("Generated expression -- {:?}", expansion.join(""));
+    let inp_val = "1     +  20   *9";
+    let mut iter = inp_val.chars().peekable();
+    let result = tokenizer(&mut iter);
+    println!("Amazing Lexing: {:?}", result);
 }
